@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebFlash - Universal Android Flasher</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f0f11; color: #e4e4e7; padding: 40px; text-align: center; }
+        .card { background: #18181b; border: 1px solid #27272a; padding: 25px; border-radius: 12px; max-width: 500px; margin: 20px auto; text-align: left; }
+        button { background: #f97316; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 15px; }
+        button:hover { background: #ea580c; }
+        pre { background: #09090b; padding: 12px; border-radius: 6px; color: #22c55e; overflow-x: auto; font-size: 13px; }
+        h3 { color: #f4f4f5; margin-top: 0; }
+    </style>
+</head>
+<body>
+
+    <h1>WebFlash</h1>
+    <p>Universal browser-based custom ROM deployment panel.</p>
+
+    <div class="card">
+        <h3>1. Device Handshake</h3>
+        <button id="connectBtn">Claim Device USB Handle</button>
+        <p id="usbStatus" style="color: #a1a1aa; font-size: 14px;"></p>
+    </div>
+
+    <div class="card" id="romCard" style="display: none;">
+        <h3 id="deviceName">Detecting Database Manifest...</h3>
+        <p><strong>Hardware Codename:</strong> <span id="deviceCodename" style="color:#f97316;"></span></p>
+        <p><strong>Available Scripts:</strong></p>
+        <div id="romList"></div>
+    </div>
+
+    <!-- Firebase Integration Module Engines -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
+        const firebaseConfig = {
+
+          apiKey: "AIzaSyAsxPS9bAn6VBNBKh4gzobcqRFVFF1jkTw",
+
+          authDomain: "webflash-b1170.firebaseapp.com",
+
+          projectId: "webflash-b1170",
+
+          storageBucket: "webflash-b1170.firebasestorage.app",
+
+          messagingSenderId: "179323731519",
+
+          appId: "1:179323731519:web:72efa652b8223877df428a",
+
+          measurementId: "G-1L3V32S64D"
+
+        };
+
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Native Browser WebUSB Handshake Logic
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const status = document.getElementById('usbStatus');
+            try {
+                // Request access to an Android bootloader / interface device node
+                const device = await navigator.usb.requestDevice({ filters: [] });
+                status.innerText = `Connected: ${device.productName} by ${device.manufacturerName}`;
+
+                // Hardcoded look-up call for testing your live dream2lte database record
+                fetchDeviceManifest("dream2lte");
+            } catch (err) {
+                status.innerText = "Connection rejected: " + err.message;
+            }
+        });
+
+        // Pulls document details from your cloud Firestore layout
+        async function fetchDeviceManifest(codename) {
+            const docRef = doc(db, "devices", codename);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                document.getElementById('romCard').style.display = "block";
+                document.getElementById('deviceName').innerText = `${data.brand} ${data.marketing_name}`;
+                document.getElementById('deviceCodename').innerText = data.codename;
+
+                let romHTML = "";
+                // Loop through your custom nested supported_roms maps
+                for (const [romName, details] of Object.entries(data.supported_roms)) {
+                    romHTML += `
+                        <div style="border-top: 1px solid #27272a; padding-top: 10px; margin-top: 10px;">
+                            <strong>${romName} (Android ${details.version})</strong>
+                            <p style="font-size:12px; color:#a1a1aa; margin:5px 0;">Target Commands Script:</p>
+                            <pre>${details.twrp_commands.join('\n')}</pre>
+                            <button onclick="alert('Streaming payload from: ${details.download_url}')">Execute Flash Stream</button>
+                        </div>
+                    `;
+                }
+                document.getElementById('romList').innerHTML = romHTML;
+            }
+        }
+    </script>
+</body>
+</html>
